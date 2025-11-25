@@ -1,7 +1,9 @@
+#!/bin/bash
 set -x
 
 # Change to workspace root so Hydra can find the config files
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Use $0 for compatibility with both sh and bash
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$WORKSPACE_ROOT"
 
@@ -12,8 +14,8 @@ gsm8k_test_path=/workspace/verl/recipe/prime/data/gsm8k/test-00000-of-00001.parq
 math_train_path=/workspace/verl/recipe/prime/data/math/train.parquet
 math_test_path=/workspace/verl/recipe/prime/data/math/test.parquet
 
-train_files="['$gsm8k_train_path', '$math_train_path']"
-test_files="['$gsm8k_test_path', '$math_test_path']"
+train_files="[ '$math_train_path']"
+test_files="[ '$math_test_path']"
 
 model_path=PRIME-RL/Eurus-2-7B-SFT
 # model_path=Qwen/Qwen2.5-0.5B-Instruct
@@ -43,6 +45,7 @@ python3 -m recipe.prime.main_prime \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.n=4 \
+    actor_rollout_ref.rollout.mode=sync \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=32 \
     algorithm.adv_estimator=rloo \
@@ -61,8 +64,11 @@ python3 -m recipe.prime.main_prime \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='prime_example' \
     trainer.experiment_name='Eurus-2-7B-SFT-gsm8k' \
-    trainer.n_gpus_per_node=8 \
+    trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \
     trainer.save_freq=64 \
     trainer.test_freq=64 \
     trainer.total_epochs=15 $@
+
+#  +actor_rollout_ref.model.override_config.attn_implementation=eager \
+#  +reward_model.model.override_config.attn_implementation=eager \

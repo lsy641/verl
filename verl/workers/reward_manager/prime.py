@@ -125,7 +125,25 @@ class PrimeRewardManager(AbstractRewardManager):
 
         response_ids = data.batch["responses"]
         sequences_str = self.tokenizer.batch_decode(response_ids, skip_special_tokens=True)
-        ground_truth = [data_item.non_tensor_batch["reward_model"]["ground_truth"] for data_item in data]
+
+        ground_truth = []
+        for data_item in data:
+            reward_model_meta = data_item.non_tensor_batch.get("reward_model") or {}
+            gt = reward_model_meta.get("ground_truth")
+            if gt is None:
+                # fall back to common dataset fields
+                fallback_keys = ["answer", "response", "ground_truth"]
+                for key in fallback_keys:
+                    if key in data_item.non_tensor_batch and data_item.non_tensor_batch[key] is not None:
+                        gt = data_item.non_tensor_batch[key]
+                        break
+            if gt is None:
+                raise ValueError(
+                    "PrimeRewardManager.verify requires ground truth. "
+                    "Provide reward_model.ground_truth or ensure the dataset supplies an 'answer' field."
+                )
+            ground_truth.append(gt)
+
         data_sources = data.non_tensor_batch[self.reward_fn_key]
         extra_info = data.non_tensor_batch.get("extra_info", None)
 
